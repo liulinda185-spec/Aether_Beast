@@ -1,45 +1,129 @@
-# Aether Beast — 以太兽 3D
+# Aether Beast · 幻兽星河
 
-**Aether Beast is a browser-based, AI-ready creature-adventure game where you create your own beast, explore a procedurally generated 3D wilderness of five biomes, gather Ether Shards, and make an evolution choice that reshapes the rest of your run.**
+A turn-based **civilisation balance** game. Six dimensions — Environment, Peace, Freedom, Equality, Prosperity, Culture — drift each tick; every choice raises one and lowers another; imbalance turns into chaos, and chaos ends the run.
 
-> 一句话简介：创造一个属于你的兽，在每次随机重编的 3D 荒野里收集以太结晶、躲开影兽，并在旅途中做一次真正改变战局的进化抉择。
+> 一句话：六维文明在每一次选择里一升一降，失衡累积成混沌，混沌终局。神兽不是战斗单位，是**你干预世界的那只手**。
 
-## 玩法
+**Play right now** · 直接开玩
 
-- 开局选择兽的元素（火 / 水 / 风 / 地 / 影）
-- 在 3D 开放地形中奔跑，收集 **15 个以太结晶**
-- 每张地图随机生成 5 个生物群系：翠色野原、熔岩裂隙、镜水低地、古木深林、暮色夹缝
-- 躲避 8 只游荡追击的影兽，被撞会损失生命
-- 收集到第 8 个结晶时触发**进化三选一**：烈阳之心 / 疾风之羽 / 磐石之核，选择会真实改变后续体验
-- 生命归零或集满结晶结束一局
-
-## 操作
-
-| 设备 | 操作 |
+| Version | Link |
 |---|---|
-| 桌面 | WASD / 方向键移动，鼠标拖拽转视角 |
-| 手机 | 左侧滑动移动（虚拟摇杆），右侧滑动转视角 |
+| 中文 | [`slice/index.html`](slice/index.html) |
+| English | [`slice/index-en.html`](slice/index-en.html) |
 
-## 技术
+Double-click the file — no server, no build, no dependencies. Add `?auto=2` to skip straight to an ending screen.
 
-- 纯静态单文件 HTML + Three.js（CDN 加载），无需后端
-- 地形、群系布局、结晶与敌人分布由程序种子生成，每次开局不同
-- 代码中预留了 AI 生成接口（场景文案 / 兽故事），后续可接入 LLM
+---
 
-## 部署到 GitHub Pages（5 步）
+## What is this
 
-1. 打开 [github.com](https://github.com)，新建一个仓库（如 `aether-beast`），勾选 **Public**
-2. 本文件夹里的 `index.html` 和 `README.md` 就是这个仓库的全部内容——直接上传这两个文件
-   - GitHub 网页端：仓库页面 → **Add file → Upload files** → 拖入两个文件 → Commit
-3. 进入仓库 **Settings → Pages**
-4. **Source** 选 `Deploy from a branch`，Branch 选 `main` / `master`，目录选 `/ (root)`，点 **Save**
-5. 等 1–2 分钟，你的游戏就会出现在 `https://<你的用户名>.github.io/aether-beast/`
+This repository is the build log of a game that changed direction mid-way, and the change is visible in the artefacts.
 
-## 本地试玩
+**v0.1** was a card-game balance model: 16 rounds, three sources of pressure, a difficulty ladder, four player archetypes simulated 2000 runs each. That produced a GDD, a nine-sheet balance workbook, and four charts.
 
-直接双击打开 `index.html` 即可（无需安装任何东西）。
+**v0.2** pivoted to open-world exploration: worlds and creatures come out of an idea database plus a seed, and the player's own beast is generated from **keywords**. Two rules survived the pivot:
 
-## 版本
+- Keywords may never touch numbers directly. Keywords pick *materials*; materials carry *verbs*; verbs are grammatical and their numbers are fixed in advance. A keyword system that writes stats destroys reproducibility, offline cost, and the balance envelope at the same time.
+- A material is only obtained by **observing** the creature that carries it — observation costs one of the eight free ticks, so a full collection run means never moving.
 
-- v0.2 — 生物群系地貌 + 进化三选一（当前）
-- v0.1 — 2D 文字三选一切片（已归档）
+The playable slice in `slice/` is the result: **one world (a frost steppe), 8 creatures, 1 generated beast with 3 material slots, 16 ticks (8 encounters + 8 free ticks)**.
+
+---
+
+## The numbers are the design
+
+Six dimensions start at 50. Balance is a function of spread, not of level:
+
+```
+μ = mean(six dims)          σ = population std (divided by 6)
+Balance = clamp(100 − 2.5σ, 0, 100)
+chaos growth = ( (100−Balance)/15 + (50−μ)/15 + issuePressure ) × (1 + chaos/100)²
+```
+
+Three ways to die, checked in this order: `chaos ≥ 100` → `Balance < 28` for 6 consecutive ticks → `μ < 20` for 6 consecutive ticks.
+
+The third one exists because of a real hole: a world with **all six dimensions at 10** has perfect balance (σ = 0, Balance = 100). Balanced readings, dead civilisation. The decay term and the ash check close it — and the test suite asserts exactly that case.
+
+### Verification (all runnable)
+
+`node tools/slice/test_engine.js` → **10/10**
+
+| # | Claim | Measured |
+|---|---|---|
+| A1 | Same seed ⇒ same run | two runs: chaos 57.7 / 57.7, 16-tick sequence identical |
+| A2 | Readings match GDD (≤0.1) | max deviation **0.09** |
+| A3 | All three deaths reachable | chaos end at tick 8 · collapse at 6 · ash at 6 |
+| A3c | Ash ≠ balanced | all-dims-10 world: Balance **100.0**, still judged ash |
+| A4 | 144 ability shapes legal | 144 unique, 0 direction errors, 0 magnitude errors |
+| A5 | Frost steppe harvest | 8 creatures → 8 distinct materials |
+| A6 | Survival rates match the workbook (≤3pt) | max deviation **2.9pt** over 4 archetypes × 2000 runs |
+
+`node tools/slice/test_slice_logic.js [en]` → **6/6**, both languages. Cross-language check: 300 random runs in Chinese and in English produce **the identical distribution** (chaos-end 128 / survived 172) — proof the translation carries no mechanical drift.
+
+---
+
+## Architecture
+
+```
+engine.js              254 lines, zero dependencies, Node + browser, mulberry32 PRNG
+                       all rules live here; the UI never recomputes a number
+slice/logic.js         16-tick state machine: free ticks vs encounters, observation,
+                       material→verb→ability pipeline, light-tier "no tick spent"
+slice/data.js          generated · one world + 20 materials + grammar + 5 keyword presets
+slice/data-en.js       generated · same via a translation table with a leftover-CJK gate
+slice/index.html       playable UI (Canvas 2D), Chinese
+slice/index-en.html    playable UI, English — same engine and logic, different data
+tools/worldgen/        idea database + world generator (24 behaviours, 16 bodies, 8 biomes)
+tools/beastgen/        keyword → materials → verbs → 144 ability shapes
+tools/slice/           data builders + the two test suites above
+docs/                  GDD, nine-sheet balance workbook, design reports, charts
+```
+
+Design rule worth stating: **mechanical values are never translated.** In the English build, `strength`, dimension names and verb keys stay as the original tokens — only display strings go through `data.ui`. A first attempt that translated the light/medium/heavy tokens broke the light tier and the heavy-tier chaos penalty without raising a single error.
+
+---
+
+## Run it, rebuild it
+
+```bash
+# play
+open slice/index.html          # or double-click
+
+# verify
+node tools/slice/test_engine.js
+node tools/slice/test_slice_logic.js
+node tools/slice/test_slice_logic.js en
+
+# regenerate data (needs python)
+python tools/slice/build_slice_data.py
+python tools/slice/build_slice_data_en.py
+```
+
+---
+
+## Design documents
+
+| Document | What it holds |
+|---|---|
+| [GDD (v0.1)](docs/GDD-幻兽星河-v0.1.md) | six dimensions, three pressure sources, morality as background drift, still-water ending |
+| [Balance workbook](docs/数值配平表-幻兽星河-v0.1.xlsx) | 9 sheets: parameters, balance curve, chaos timeline, card pool, pacing, endings, difficulty ladder, beast grammar |
+| [Open-world generator report](docs/v0.2-开放世界-方向与生成器验证.md) | why the generator lives outside the engine, and the four compatibility axes it took to stop producing contradictions |
+| [Beast grammar](docs/v0.2-神兽生成方案.md) | keyword → material → verb chain, 144 shapes, why keywords cannot write numbers |
+| [Slice spec](docs/v0.2-垂直切片规格.md) | the 16-tick scope and the six acceptance criteria |
+| [Verification report](docs/切片验收报告.md) | the measured numbers, plus the four defects the tests and the screenshots actually caught |
+
+Charts: [k=2.5 balance curve](docs/img/图1_失衡系数对比.png) · [chaos acceleration](docs/img/图2_混沌加速曲线.png) · [world samples](docs/img/图3_世界样本雷达.png) · [four archetypes](docs/img/图4_四种玩法混沌轨迹.png) · [slice screenshot](docs/img/图5_切片界面.png) · [English slice](docs/img/fig6_slice_en.png)
+
+---
+
+## The older prototype
+
+`index.html` at the repository root is an earlier, unrelated build: a Three.js 3D creature-collecting game (five biomes, 15 crystals, 8 shadow beasts, one evolution choice). It still runs and it is kept because it is a different game, not a worse one. WASD / arrows to move, drag to look.
+
+The v0.2 direction is the one in `slice/`.
+
+---
+
+## Status
+
+Playable slice — done. Not done: 24 behaviours → 60, 20 materials → 36 (the 20 fill only 20 of the 36 element×form cells, so 58% of drops currently match by element only), still-water ending proven reachable, sub-species suffixes for duplicate creature names.

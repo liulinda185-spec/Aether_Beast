@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>幻兽星河 · 霜原切片 v0.2</title>
+<style>
+  :root{
+    --bg:#0e1014; --panel:#161a21; --panel2:#1d222b; --line:#2a3038;
+    --text:#d8dce3; --dim:#8b93a5; --gold:#c8922f; --teal:#2f7d7a;
+    --red:#b3453a; --up:#4f9d6b; --dn:#b3453a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:14px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  #app{display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto minmax(0,1fr) auto;
+    gap:12px;padding:12px;height:100vh}
+  header{grid-column:1/3;display:flex;align-items:baseline;gap:18px;
+    padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+  header h1{margin:0;font-size:16px;letter-spacing:.06em;font-weight:600}
+  header .meta{color:var(--dim);font-size:12.5px}
+  header .tick{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--gold)}
+  #stage{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:0}
+  canvas{display:block;width:100%;height:100%}
+  #side{display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0;padding-right:2px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+  .card h2{margin:0 0 8px;font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.1em}
+  .dim{display:grid;grid-template-columns:38px 1fr 30px;align-items:center;gap:8px;margin:5px 0}
+  .dim .name{font-size:12.5px}
+  .bar{position:relative;height:9px;background:#0b0d11;border-radius:2px;overflow:hidden}
+  .bar .fill{position:absolute;left:0;top:0;bottom:0;background:#4a5568;transition:width .24s}
+  .bar .win{position:absolute;top:0;bottom:0;left:45%;width:10%;background:rgba(200,146,47,.20);
+    border-left:1px solid rgba(200,146,47,.5);border-right:1px solid rgba(200,146,47,.5)}
+  .dim .val{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--dim)}
+  .dim.low .fill{background:var(--dn)} .dim.high .fill{background:var(--gold)}
+  #chaosbar .fill{background:linear-gradient(90deg,#7a3a33,#b3453a,#e0644a)}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim);margin:3px 0}
+  .kv b{color:var(--text);font-weight:500;font-variant-numeric:tabular-nums}
+  .warn{color:var(--red)}
+  footer{grid-column:1/3;display:grid;grid-template-columns:200px 1fr 300px;gap:12px}
+  #timeline{display:flex;gap:3px;align-items:center}
+  .cell{width:10px;height:26px;background:#0b0d11;border:1px solid var(--line);border-radius:2px}
+  .cell.enc{border-color:#3a4450}
+  .cell.now{outline:2px solid var(--gold);outline-offset:1px}
+  .cell.pass{background:#2a3038}
+  #acts{display:block}
+  .encinfo{color:#bfc6d2;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #21262d}
+  .encinfo .nm{font-size:14.5px;color:#e8e2d2}
+  .encinfo .sub{color:#8b93a5;font-size:12px}
+  .encinfo .hook{color:#9aa3b5;font-size:12.5px;font-style:italic;margin-top:3px}
+  .btnrow{display:flex;flex-wrap:wrap;gap:6px}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:4px;padding:7px 11px;font-size:12.5px;cursor:pointer;text-align:left}
+  button:hover{border-color:var(--gold)}
+  button.k-option{border-left:3px solid var(--teal)}
+  button.k-ability{border-left:3px solid var(--gold)}
+  button.k-light{border-left:3px solid #5c6b7a}
+  button.k-observe{border-left:3px solid #8a7ab8}
+  #log{overflow:auto;max-height:104px;font-size:12px;color:var(--dim)}
+  #log div{padding:1px 0;border-bottom:1px dashed #21262d}
+  #overlay{position:fixed;inset:0;background:rgba(8,10,13,.86);display:none;
+    place-items:center;padding:24px}
+  #overlay.on{display:grid}
+  .modal{max-width:860px;width:100%;max-height:88vh;overflow:auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:20px}
+  .modal h2{margin:0 0 6px;font-size:18px}
+  .modal p{color:var(--dim);margin:6px 0 14px}
+  .presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+  .preset{border:1px solid var(--line);border-radius:6px;padding:12px;cursor:pointer;background:var(--panel2)}
+  .preset:hover{border-color:var(--gold)}
+  .preset .kw{color:var(--gold);font-size:12px;letter-spacing:.08em}
+  .preset .nm{font-size:15px;margin:4px 0 6px}
+  .preset .sl{font-size:11.5px;color:var(--dim);margin-bottom:8px}
+  .preset li{font-size:11.5px;color:#bfc6d2;list-style:none;margin:2px 0}
+  .preset li span{color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>幻兽星河 · 霜原切片</h1>
+    <span class="meta" id="h-meta"></span>
+    <span class="tick" id="h-tick"></span>
+  </header>
+
+  <div id="stage"><canvas id="cv"></canvas></div>
+
+  <div id="side">
+    <div class="card">
+      <h2>六维（金色区 = 静水 45–55）</h2>
+      <div id="dims"></div>
+    </div>
+    <div class="card">
+      <h2>混沌</h2>
+      <div class="bar" id="chaosbar"><div class="fill" id="chaosfill" style="width:0%"></div></div>
+      <div class="kv"><span>混沌累计</span><b id="v-chaos">0</b></div>
+      <div class="kv"><span>均衡度</span><b id="v-bal">100</b></div>
+      <div class="kv"><span>议题压力 p</span><b id="v-issue">1.00</b></div>
+      <div class="kv"><span>崩塌倒计时</span><b id="v-sb">0/6</b></div>
+      <div class="kv"><span>灰烬倒计时</span><b id="v-sm">0/6</b></div>
+    </div>
+    <div class="card">
+      <h2>我的神兽</h2>
+      <div class="kv"><span id="b-name">—</span></div>
+      <div class="kv"><span>素材</span><b id="b-slots">—</b></div>
+      <div class="kv"><span>方向 / 槽位</span><b id="b-dirs">—</b></div>
+      <div class="kv"><span>已采素材</span><b id="b-inv">0</b></div>
+      <div class="kv"><span>轻档剩余</span><b id="b-light">3</b></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="card"><h2>16 刻</h2><div id="timeline"></div></div>
+    <div class="card"><h2 id="acttitle">行动</h2><div id="acts"></div></div>
+    <div class="card"><h2>日志</h2><div id="log"></div></div>
+  </footer>
+</div>
+
+<div id="overlay" class="on">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script src="../engine.js"></script>
+<script src="./data.js"></script>
+<script src="./logic.js"></script>
+<script>
+(function(){
+  var E = window.ABEngine, L = window.SliceLogic, DATA = window.SLICE_DATA;
+  var DIMS = E.DIMS;
+  var cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  var game = null;
+
+  // ---------- 开局选择 ----------
+  function showSetup(){
+    var d = DATA.world;
+    var rows = DATA.presets.map(function(p, i){
+      return '<div class="preset" data-i="'+i+'">'
+        + '<div class="kw">关键词：'+p.keywords.join(" ")+'</div>'
+        + '<div class="nm">'+p.name+'</div>'
+        + '<div class="sl">'+p.slots.join(" + ")+'　池 '+p.poolSize+' 条</div>'
+        + '<ul>'+p.equipped.map(function(a){
+            return '<li>'+a.text+'　<span>'+a.upDim+' +'+a.mag+' / '+a.downDim+' −'+a.mag+'</span></li>';
+          }).join("")+'</ul></div>';
+    }).join("");
+    document.getElementById("modal").innerHTML =
+      '<h2>'+d.name+'</h2>'
+      + '<p>'+d.biome+'：'+d.biomeScene+'<br>主议题：<b style="color:#d8dce3">'+d.issue+'</b>　'+d.issueLine
+      + '<br>难度 D = '+d.D+'（'+d.DLabel+'）　一局 '+d.ticks+' 刻：8 个遭遇刻 + 8 个自由刻</p>'
+      + '<p style="color:#8b93a5">先选一只神兽。关键词决定素材，素材决定它能动哪几根轴。窄兽只有 2 个按钮，宽兽 4 个。</p>'
+      + '<div class="presets">'+rows+'</div>';
+    document.getElementById("overlay").classList.add("on");
+    Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(el){
+      el.onclick = function(){ start(parseInt(el.dataset.i, 10)); };
+    });
+  }
+
+  function start(i){
+    game = L.createGame(DATA, i);
+    document.getElementById("overlay").classList.remove("on");
+    render();
+  }
+
+  // ---------- 渲染 ----------
+  function resize(){
+    var r = cv.parentElement.getBoundingClientRect();
+    cv.width = Math.max(320, r.width); cv.height = Math.max(240, r.height);
+    if (game) draw();
+  }
+  window.addEventListener("resize", resize);
+
+  function render(){
+    var d = DATA.world, st = game.st, dv = E.derived(st);
+    document.getElementById("h-meta").textContent =
+      d.name + "　·　议题 " + d.issue + (game.over ? "　·　" + game.outcome : "");
+    document.getElementById("h-tick").textContent =
+      "刻 " + Math.min(st.tick, d.ticks) + " / " + d.ticks;
+
+    // 六维
+    var dimsHtml = DIMS.map(function(n, i){
+      var v = st.dims[i], cls = v < 20 ? "low" : (v > 80 ? "high" : "");
+      return '<div class="dim '+cls+'"><span class="name">'+n+'</span>'
+        + '<div class="bar"><div class="fill" style="width:'+v+'%"></div><div class="win"></div></div>'
+        + '<span class="val">'+v.toFixed(0)+'</span></div>';
+    }).join("");
+    document.getElementById("dims").innerHTML = dimsHtml;
+
+    document.getElementById("chaosfill").style.width = Math.min(100, st.chaos) + "%";
+    document.getElementById("v-chaos").textContent = Math.min(100, st.chaos).toFixed(1);
+    document.getElementById("v-bal").textContent = dv.balance.toFixed(1);
+    document.getElementById("v-issue").textContent = st.issue.toFixed(2);
+    document.getElementById("v-sb").textContent = st.streakBal + "/6";
+    document.getElementById("v-sm").textContent = st.streakMu + "/6";
+    document.getElementById("v-sb").className = st.streakBal > 0 ? "warn" : "";
+    document.getElementById("v-sm").className = st.streakMu > 0 ? "warn" : "";
+
+    // 神兽
+    document.getElementById("b-name").textContent = game.preset.name;
+    document.getElementById("b-slots").textContent = game.slots.join(" / ");
+    document.getElementById("b-dirs").textContent = game.beast.dirCount + " 个方向 → " + game.beast.equipped.length + " 个能力";
+    document.getElementById("b-inv").textContent = game.inventory.length + " 件";
+    document.getElementById("b-light").textContent = game.lightLeft;
+
+    // 时间轴
+    var tl = "";
+    for (var t = 1; t <= d.ticks; t++){
+      var cls = "cell" + (t % 2 === 0 ? " enc" : "") + (t <= st.tick ? " pass" : "") + (t === st.tick + 1 ? " now" : "");
+      tl += '<div class="'+cls+'" title="第 '+t+' 刻"></div>';
+    }
+    document.getElementById("timeline").innerHTML = tl;
+
+    // 行动
+    var acts = L.availableActions(game);
+    var enc = L.currentEncounter(game);
+    document.getElementById("acttitle").textContent =
+      game.over ? "已经结束" : (enc ? "第 " + (st.tick+1) + " 刻 · 遭遇" : "第 " + (st.tick+1) + " 刻 · 自由刻");
+    var panel = "";
+    if (enc){
+      panel += '<div class="encinfo">'
+        + '<div class="nm">' + enc.name + '</div>'
+        + '<div class="sub">' + enc.element + '／' + enc.body + '／' + enc.behavior
+        + '　·　' + enc.measure + '</div>'
+        + '<div class="sub">' + enc.shape + '</div>'
+        + '<div class="hook">' + enc.hook + '</div>'
+        + '</div>';
+    }
+    panel += '<div class="btnrow">';
+    acts.forEach(function(a){
+      var cls = "k-" + a.kind;
+      var extra = "";
+      if (a.kind === "option" && enc){
+        var op = enc.actions[parseInt(a.id.split(":")[1],10)];
+        extra = "　" + Object.keys(op.dims).map(function(k){
+          var v = op.dims[k];
+          return '<span style="color:'+(v>0?"#4f9d6b":"#b3453a")+'">'+k+' '+(v>0?"+":"")+v+'</span>';
+        }).join("　");
+      }
+      panel += '<button class="'+cls+'" data-id="'+a.id+'">'+a.label+extra+'</button>';
+    });
+    panel += '</div>';
+    document.getElementById("acts").innerHTML = panel;
+    Array.prototype.forEach.call(document.querySelectorAll("#acts button"), function(b){
+      b.onclick = function(){ L.act(game, b.dataset.id); afterAct(); };
+    });
+
+    // 日志
+    document.getElementById("log").innerHTML = game.log.slice(-12).reverse()
+      .map(function(x){ return "<div>"+x+"</div>"; }).join("");
+
+    draw();
+  }
+
+  function afterAct(){
+    render();
+    if (game.over) showOver();
+  }
+
+  function showOver(){
+    var st = game.st, dv = E.derived(st);
+    var why = game.outcome;
+    var line = { "存活":"你把这块地方撑过了 16 刻。", "混沌终焉":"失衡累积成宇宙级裂隙。",
+                 "文明崩塌":"社会结构被单一力量吞掉了。", "灰烬":"不分裂，但全穷。" }[why] || "";
+    document.getElementById("modal").innerHTML =
+      '<h2 style="color:'+(why==="存活"?"#4f9d6b":"#b3453a")+'">'+why+'</h2>'
+      + '<p>'+line+'</p>'
+      + '<div class="kv"><span>结束刻</span><b>'+st.tick+'</b></div>'
+      + '<div class="kv"><span>最终混沌</span><b>'+Math.min(100,st.chaos).toFixed(1)+'</b></div>'
+      + '<div class="kv"><span>最终均衡度</span><b>'+dv.balance.toFixed(1)+'</b></div>'
+      + '<div class="kv"><span>六维</span><b>'+st.dims.map(function(v){return v.toFixed(0);}).join(" / ")+'</b></div>'
+      + '<div class="kv"><span>采到的素材</span><b>'+(game.inventory.join("、")||"没有")+'</b></div>'
+      + '<p style="margin-top:16px"><button id="again">再来一局</button></p>';
+    document.getElementById("overlay").classList.add("on");
+    document.getElementById("again").onclick = function(){
+      document.getElementById("overlay").classList.add("on");
+      showSetup();
+    };
+  }
+
+  // ---------- 画布 ----------
+  function draw(){
+    if (!game) return;
+    var d = DATA.world, W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var gBg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, Math.max(W,H)*0.7);
+    gBg.addColorStop(0, "#151a23"); gBg.addColorStop(1, "#0b0d11");
+    ctx.fillStyle = gBg; ctx.fillRect(0, 0, W, H);
+
+    // 霜纹底
+    ctx.strokeStyle = "rgba(120,140,170,.07)"; ctx.lineWidth = 1;
+    for (var i = 0; i < 26; i++){
+      ctx.beginPath();
+      ctx.moveTo((i*97)%W, 0); ctx.lineTo((i*61)%W, H); ctx.stroke();
+    }
+
+    var cx = W/2, cy = H/2, R = Math.min(W, H) * 0.34;
+    var n = d.beasts.length;
+    var st = game.st;
+
+    // 环
+    ctx.strokeStyle = "rgba(200,146,47,.22)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke();
+
+    d.beasts.forEach(function(b, idx){
+      var ang = -Math.PI/2 + idx * (Math.PI*2/n);
+      var x = cx + Math.cos(ang)*R, y = cy + Math.sin(ang)*R;
+      var isPos = idx === game.pos;
+      var seen = game.observed.indexOf(idx) >= 0;
+      var encIdx = (st.tick) / 2;                 // 已打过的遭遇数（粗略）
+      var done = idx < Math.min(8, encIdx);
+
+      // 节点
+      ctx.beginPath(); ctx.arc(x, y, isPos ? 13 : 9, 0, Math.PI*2);
+      ctx.fillStyle = isPos ? "#c8922f" : (seen ? "rgba(47,125,122,.75)" : (done ? "#3a4450" : "#252b34"));
+      ctx.fill();
+      ctx.strokeStyle = isPos ? "#e8c37a" : "rgba(200,146,47,.35)";
+      ctx.lineWidth = isPos ? 2 : 1; ctx.stroke();
+
+      // 标签：用全名，并在贴近画布边缘时向内收，避免被裁
+      ctx.save();
+      var ux = Math.cos(ang), uy = Math.sin(ang);
+      var lx = cx + ux*(R + 30), ly = cy + uy*(R + 30);
+      lx = Math.max(44, Math.min(W - 44, lx));
+      ly = Math.max(18, Math.min(H - 18, ly));
+      ctx.fillStyle = isPos ? "#e8c37a" : "#8b93a5";
+      ctx.font = "11.5px 'Microsoft YaHei',sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(seen ? "已采 " + b.drop : b.name, lx, ly);
+      ctx.restore();
+    });
+
+    // 中央：神兽
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(200,146,47,.10)"; ctx.fill();
+    ctx.strokeStyle = "rgba(200,146,47,.5)"; ctx.stroke();
+    ctx.fillStyle = "#d8dce3"; ctx.font = "13px 'Microsoft YaHei',sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(game.preset.name, cx, cy - 8);
+    ctx.fillStyle = "#8b93a5"; ctx.font = "11px sans-serif";
+    ctx.fillText("刻 " + st.tick + "/16", cx, cy + 9);
+    ctx.restore();
+
+    // 角落读数
+    var dv = E.derived(st);
+    ctx.fillStyle = "rgba(139,147,165,.9)"; ctx.font = "11.5px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("均衡度 " + dv.balance.toFixed(1) + "　混沌 " + Math.min(100, st.chaos).toFixed(1)
+      + "　p " + st.issue.toFixed(2), 14, H - 14);
+  }
+
+  resize();
+  showSetup();
+  window.addEventListener("resize", function(){ resize(); if (game) draw(); });
+
+  // 验证用：?auto=N 自动用第 N 组预设随机打完一局，直接看结算屏
+  var auto = parseInt((location.search.match(/auto=(\d+)/) || [])[1], 10);
+  if (!isNaN(auto)) {
+    start(Math.min(auto, DATA.presets.length - 1));
+    var seed = 1;
+    while (!game.over) {
+      var acts = L.availableActions(game);
+      if (!acts.length) break;
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      L.act(game, acts[seed % acts.length].id);
+    }
+    render(); showOver();
+  }
+})();
+</script>
+</body>
+</html>

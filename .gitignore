@@ -1,0 +1,9 @@
+# generated artefacts (regenerable, ~10 MB)
+tools/beastgen/beast_db.json
+tools/beastgen/builds_200.json
+
+# scratch
+*.tmp
+__pycache__/
+.DS_Store
+Thumbs.db
