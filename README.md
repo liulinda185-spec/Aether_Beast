@@ -6,12 +6,12 @@ A turn-based **civilisation balance** game. Six dimensions — Environment, Peac
 
 **Play right now** · 直接开玩
 
-| Version | Link |
-|---|---|
-| 中文 | [`slice/index.html`](slice/index.html) |
-| English | [`slice/index-en.html`](slice/index-en.html) |
+| Version | Offline | Online (GitHub Pages) |
+|---|---|---|
+| 中文 | [`slice/index.html`](slice/index.html) | [slice/](https://liulinda185-spec.github.io/Aether_Beast/slice/index.html) |
+| English | [`slice/index-en.html`](slice/index-en.html) | [slice/index-en.html](https://liulinda185-spec.github.io/Aether_Beast/slice/index-en.html) |
 
-Double-click the file — no server, no build, no dependencies. Add `?auto=2` to skip straight to an ending screen.
+No server, no build, no dependencies — double-click the file, or open the online link once Pages is enabled (root serves a two-button landing page). Add `?auto=2` to skip straight to an ending screen.
 
 ---
 
@@ -118,9 +118,9 @@ Charts: [k=2.5 balance curve](docs/img/图1_失衡系数对比.png) · [chaos ac
 
 ## The older prototype
 
-`index.html` at the repository root is an earlier, unrelated build: a Three.js 3D creature-collecting game (five biomes, 15 crystals, 8 shadow beasts, one evolution choice). It still runs and it is kept because it is a different game, not a worse one. WASD / arrows to move, drag to look.
+[`legacy/3d-collect.html`](legacy/3d-collect.html) is an earlier, unrelated build: a Three.js 3D creature-collecting game (five biomes, 15 crystals, 8 shadow beasts, one evolution choice). It still runs and it is kept because it is a different game, not a worse one. WASD / arrows to move, drag to look.
 
-The v0.2 direction is the one in `slice/`.
+The v0.2 direction is the one in `slice/`, and the root `index.html` is a two-button landing page between the two.
 
 ---
 

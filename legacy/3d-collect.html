@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aether Beast 3D · 以太荒野</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='32' fill='%23e0a94a'/></svg>">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0f1218;
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;}
+  #scene{position:fixed;inset:0;display:block;}
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,14,22,.6);backdrop-filter:blur(4px);z-index:10;}
+  .panel{background:#181d29;border:1px solid #2b3345;border-radius:18px;padding:26px;
+    max-width:460px;width:90%;color:#ece8df;max-height:92vh;overflow:auto;}
+  .panel h1{font-size:22px;letter-spacing:3px;margin-bottom:4px;}
+  .panel h1 span{color:#e0a94a;}
+  .panel .sub{font-size:12px;color:#8b92a5;margin-bottom:18px;line-height:1.6;}
+  .el-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px;}
+  .el-cell{padding:10px 2px;text-align:center;border:2px solid #2b3345;border-radius:10px;
+    cursor:pointer;background:#1f2533;}
+  .el-cell.sel{border-color:var(--c);}
+  .el-cell .d{width:20px;height:20px;border-radius:50%;margin:0 auto 5px;background:var(--c);}
+  .el-cell .n{font-size:13px;font-weight:700;}
+  .el-cell .h{font-size:10px;color:#8b92a5;margin-top:2px;}
+  .btn{width:100%;padding:13px;border:none;border-radius:11px;background:#e0a94a;color:#1a1408;
+    font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;}
+  .btn:hover{filter:brightness(1.08);}
+  .controls{font-size:11px;color:#8b92a5;margin-top:14px;line-height:1.7;text-align:center;}
+
+  #hud{position:fixed;top:0;left:0;right:0;padding:14px 16px;display:none;
+    justify-content:space-between;align-items:flex-start;z-index:5;pointer-events:none;}
+  .hud-card{background:rgba(20,26,38,.7);border:1px solid #2b3345;border-radius:12px;
+    padding:10px 14px;color:#ece8df;font-size:13px;}
+  .hpbar{width:160px;height:9px;background:#0f1218;border-radius:99px;overflow:hidden;margin-top:5px;}
+  .hpbar i{display:block;height:100%;background:#6fbf73;transition:width .2s;}
+  #goal{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:5;display:none;
+    background:rgba(20,26,38,.7);border:1px solid #2b3345;border-radius:99px;padding:8px 18px;
+    color:#e0a94a;font-size:13px;letter-spacing:1px;white-space:nowrap;}
+  #banner{position:fixed;top:14%;left:50%;transform:translateX(-50%);z-index:6;display:none;
+    text-align:center;}
+  #banner .b-name{font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.7);letter-spacing:2px;}
+  #banner .b-desc{font-size:12px;color:#e8e6df;margin-top:6px;text-shadow:0 1px 8px rgba(0,0,0,.8);}
+  #msg{position:fixed;top:22%;left:50%;transform:translateX(-50%);z-index:6;display:none;
+    font-size:17px;font-weight:700;color:#e0a94a;text-shadow:0 2px 12px rgba(0,0,0,.6);}
+  .evo-opt{display:block;width:100%;text-align:left;background:#1f2533;border:1px solid #2b3345;
+    border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;color:#ece8df;}
+  .evo-opt:hover{border-color:#e0a94a;}
+  .evo-opt .t{font-size:15px;font-weight:700;}
+  .evo-opt .d{font-size:12px;color:#8b92a5;margin-top:4px;line-height:1.5;}
+  #stick{position:fixed;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.2);z-index:7;display:none;pointer-events:none;}
+  #stick .nub{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(224,169,74,.7);
+    left:32px;top:32px;}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="hud">
+  <div class="hud-card">
+    <div id="hud-name" style="font-weight:700;"></div>
+    <div style="font-size:11px;color:#8b92a5;margin-top:2px;">生命</div>
+    <div class="hpbar"><i id="hp-fill" style="width:100%;"></i></div>
+    <div id="hud-buff" style="font-size:11px;color:#e0a94a;margin-top:4px;"></div>
+  </div>
+  <div class="hud-card" style="text-align:right;">
+    <div style="color:#e0a94a;font-weight:700;">◆ <span id="shard-count">0</span> / <span id="shard-goal">15</span></div>
+    <div style="font-size:11px;color:#8b92a5;margin-top:2px;">以太结晶</div>
+  </div>
+</div>
+<div id="goal">WASD 移动 · 拖拽转视角 · 收集 15 个以太结晶</div>
+<div id="banner"><div class="b-name"></div><div class="b-desc"></div></div>
+<div id="msg"></div>
+<div id="stick"><div class="nub" id="stick-nub"></div></div>
+
+<div class="overlay" id="start-overlay">
+  <div class="panel">
+    <h1>AETHER <span>BEAST</span> 3D</h1>
+    <div class="sub">以太荒野 · 每次开局以太都会重新编织地貌：不同的草地、熔岩、水畔、森林与暮色地带。操控你的兽跑遍荒野，收集结晶——中途你要做出一次进化抉择。</div>
+    <div style="font-size:12px;color:#8b92a5;margin-bottom:8px;">选择你的兽的元素</div>
+    <div class="el-row" id="el-row"></div>
+    <button class="btn" id="start-btn">进入荒野</button>
+    <div class="controls">桌面：WASD 移动，鼠标拖拽转视角<br>手机：左侧滑动移动，右侧滑动转视角</div>
+  </div>
+</div>
+
+<div class="overlay" id="evo-overlay" style="display:none;">
+  <div class="panel">
+    <h1>进化<span>抉择</span></h1>
+    <div class="sub">结晶在你胸口凝成光核。选择你的进化方向——它会真实改变你剩下的旅途。</div>
+    <div id="evo-options"></div>
+  </div>
+</div>
+
+<div class="overlay" id="end-overlay" style="display:none;">
+  <div class="panel" style="text-align:center;">
+    <h1 id="end-title">荒野归来</h1>
+    <div class="sub" id="end-sub"></div>
+    <button class="btn" onclick="location.reload()">再玩一次</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+/* ============ Aether Beast 3D v0.2 — 生物群系地貌 + 进化抉择 ============ */
+const ELEMENTS = {
+  fire:   {name:'火', color:0xe2574c},
+  water:  {name:'水', color:0x4a9fd4},
+  wind:   {name:'风', color:0x5cb88a},
+  earth:  {name:'地', color:0xb07a3f},
+  shadow: {name:'影', color:0x9a86cc},
+};
+const GOAL = 15, EVO_AT = 8;
+let chosenEl='fire';
+
+/* ---------- 渲染器 / 场景 / 相机 ---------- */
+const canvas=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9ec5e8);
+scene.fog=new THREE.Fog(0x9ec5e8,40,130);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,400);
+
+const sun=new THREE.DirectionalLight(0xfff2d8,1.1);
+sun.position.set(25,35,15); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-40;sun.shadow.camera.right=40;sun.shadow.camera.top=40;sun.shadow.camera.bottom=-40;sun.shadow.camera.far=100;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a7a5a,0.55));
+
+/* ---------- 生物群系地貌（最近区域着色） ---------- */
+const BIOMES=[
+  {name:'翠色野原', color:0x6fa05a, fog:0x9ec5e8, desc:'柔软的草地一直延伸到雾边。'},
+  {name:'熔岩裂隙', color:0x8a4a3a, fog:0xc9a08a, desc:'地面温热，缝隙里透出暗红的光。'},
+  {name:'镜水低地', color:0x4a7a9a, fog:0xaac4d8, desc:'浅水没过脚踝，倒影比实物更清晰。'},
+  {name:'古木深林', color:0x3a6a4a, fog:0x86ad9c, desc:'树木高大，光线从叶缝漏下来。'},
+  {name:'暮色夹缝', color:0x6a5a7a, fog:0x9a8ab0, desc:'影子比实物更长，声音被吸走一半。'},
+];
+/* 每个群系一个随机中心，玩家落点决定脚下群系 */
+const regions=BIOMES.map((b,i)=>({
+  biome:b, x:(Math.random()-0.5)*160, z:(Math.random()-0.5)*160, idx:i
+}));
+function biomeAt(x,z){
+  let best=regions[0],bd=1e9;
+  for(const r of regions){ const d=(r.x-x)**2+(r.z-z)**2; if(d<bd){bd=d;best=r;} }
+  return best.biome;
+}
+function groundHeight(x,z){
+  return Math.sin(x*0.07)*Math.cos(z*0.06)*2.2 + Math.sin(x*0.025)*1.8;
+}
+const groundGeo=new THREE.PlaneGeometry(220,220,64,64);
+groundGeo.rotateX(-Math.PI/2);
+const gp=groundGeo.attributes.position;
+const colors=[];
+for(let i=0;i<gp.count;i++){
+  const x=gp.getX(i), z=gp.getZ(i);
+  gp.setY(i, groundHeight(x,z));
+  const c=new THREE.Color(biomeAt(x,z).color);
+  // 轻微明暗变化，避免一块死色
+  const v=0.9+((x*7+z*13)%10)/50;
+  colors.push(c.r*v, c.g*v, c.b*v);
+}
+groundGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+groundGeo.computeVertexNormals();
+const ground=new THREE.Mesh(groundGeo, new THREE.MeshLambertMaterial({vertexColors:true}));
+ground.receiveShadow=true;
+scene.add(ground);
+
+/* ---------- 散布的树与石头（按脚下群系换色调） ---------- */
+function scatter(){
+  const trunkMat=new THREE.MeshLambertMaterial({color:0x7a5a3a});
+  for(let i=0;i<70;i++){
+    const x=(Math.random()-0.5)*190, z=(Math.random()-0.5)*190;
+    if(Math.abs(x)<6&&Math.abs(z)<6) continue;
+    const bio=biomeAt(x,z);
+    const crownColor = bio.name==='古木深林'?0x2f5a3a : bio.name==='熔岩裂隙'?0x5a3a30 : 0x3f7a44;
+    const g=new THREE.Group();
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,1.2,6),trunkMat);
+    trunk.position.y=0.6; trunk.castShadow=true;
+    const crown=new THREE.Mesh(new THREE.ConeGeometry(1.1,2.2,7), new THREE.MeshLambertMaterial({color:crownColor}));
+    crown.position.y=2.0; crown.castShadow=true;
+    g.add(trunk);g.add(crown);
+    g.position.set(x,groundHeight(x,z),z);
+    g.scale.setScalar(0.8+Math.random()*0.9);
+    scene.add(g);
+  }
+  const rockMat=new THREE.MeshLambertMaterial({color:0x9a9a9a});
+  const rockGeo=new THREE.DodecahedronGeometry(0.6,0);
+  for(let i=0;i<30;i++){
+    const x=(Math.random()-0.5)*190, z=(Math.random()-0.5)*190;
+    if(Math.abs(x)<5&&Math.abs(z)<5) continue;
+    const r=new THREE.Mesh(rockGeo,rockMat);
+    r.position.set(x,groundHeight(x,z)+0.2,z);
+    r.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
+    r.scale.setScalar(0.5+Math.random()); r.castShadow=true;
+    scene.add(r);
+  }
+}
+scatter();
+
+/* ---------- 兽 ---------- */
+function buildBeast(color){
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshLambertMaterial({color});
+  const darkMat=new THREE.MeshLambertMaterial({color:new THREE.Color(color).multiplyScalar(0.55)});
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.7,12,10),bodyMat);
+  body.scale.set(1,0.9,1.2); body.position.y=0.8; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),bodyMat);
+  head.position.set(0,1.35,0.7); head.castShadow=true; g.add(head);
+  const horn=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.5,6),darkMat);
+  horn.position.set(0,1.75,0.55); horn.rotation.x=-0.2; g.add(horn);
+  const tail=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.7,6),darkMat);
+  tail.position.set(0,0.8,-0.9); tail.rotation.x=Math.PI/2+0.3; g.add(tail);
+  const eyeMat=new THREE.MeshBasicMaterial({color:0x1a1408});
+  [-0.16,0.16].forEach(ex=>{
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),eyeMat);
+    eye.position.set(ex,1.42,1.08); g.add(eye);
+  });
+  return g;
+}
+let beast=buildBeast(ELEMENTS[chosenEl].color);
+scene.add(beast);
+
+/* ---------- 结晶 & 影兽 ---------- */
+const shardGeo=new THREE.OctahedronGeometry(0.35);
+const shardMat=new THREE.MeshLambertMaterial({color:0xe0a94a,emissive:0x8a5a10});
+let shards=[];
+function spawnShards(n){
+  for(let i=0;i<n;i++){
+    const s=new THREE.Mesh(shardGeo,shardMat);
+    const x=(Math.random()-0.5)*160,z=(Math.random()-0.5)*160;
+    s.position.set(x,groundHeight(x,z)+1,z); s.castShadow=true;
+    scene.add(s); shards.push(s);
+  }
+}
+spawnShards(GOAL+6);
+const foeGeo=new THREE.IcosahedronGeometry(0.6,0);
+const foeMat=new THREE.MeshLambertMaterial({color:0x2a2438});
+let foes=[];
+function spawnFoes(n){
+  for(let i=0;i<n;i++){
+    const f=new THREE.Mesh(foeGeo,foeMat);
+    const x=(Math.random()-0.5)*150,z=(Math.random()-0.5)*150;
+    f.position.set(x,groundHeight(x,z)+0.8,z); f.castShadow=true;
+    f.userData={dir:Math.random()*Math.PI*2,hurtCd:0,stun:0};
+    scene.add(f); foes.push(f);
+  }
+}
+spawnFoes(8);
+
+/* ---------- 状态 ---------- */
+let hp=100, shardCount=0, playing=false, gameEnded=false;
+let buff=null; // 'sun' | 'wind' | 'stone'
+let evoDone=false;
+let yaw=Math.PI, pitch=0.35;
+const keys={};
+let currentBiome='';
+
+/* ---------- 输入 ---------- */
+let dragging=false,lastX=0,lastY=0;
+function onDown(x,y){dragging=true;lastX=x;lastY=y;}
+function onMove(x,y){ if(!dragging)return; yaw-=(x-lastX)*0.005; pitch=Math.max(0.08,Math.min(0.9,pitch+(y-lastY)*0.003)); lastX=x;lastY=y; }
+canvas.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
+window.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
+window.addEventListener('mouseup',()=>dragging=false);
+let joyId=null, joyVec={x:0,y:0};
+const stick=document.getElementById('stick'),nub=document.getElementById('stick-nub');
+canvas.addEventListener('touchstart',e=>{e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.clientX<innerWidth*0.4 && joyId===null){ joyId=t.identifier; stick.style.display='block';
+      stick.style.left=(t.clientX-55)+'px'; stick.style.top=(t.clientY-55)+'px'; }
+    else onDown(t.clientX,t.clientY);
+  }},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===joyId){
+      const cx=stick.offsetLeft+55,cy=stick.offsetTop+55;
+      let dx=t.clientX-cx,dy=t.clientY-cy; const len=Math.hypot(dx,dy);
+      if(len>45){dx=dx/len*45;dy=dy/len*45;}
+      nub.style.left=(32+dx)+'px'; nub.style.top=(32+dy)+'px'; joyVec={x:dx/45,y:dy/45};
+    } else onMove(t.clientX,t.clientY);
+  }},{passive:false});
+canvas.addEventListener('touchend',e=>{ for(const t of e.changedTouches){
+  if(t.identifier===joyId){joyId=null;joyVec={x:0,y:0};stick.style.display='none';nub.style.left='32px';nub.style.top='32px';}
+  dragging=false; }});
+window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+/* ---------- UI ---------- */
+const elRow=document.getElementById('el-row');
+Object.entries(ELEMENTS).forEach(([k,e])=>{
+  const d=document.createElement('div');
+  d.className='el-cell'+(k===chosenEl?' sel':'');
+  d.style.setProperty('--c','#'+e.color.toString(16).padStart(6,'0'));
+  d.innerHTML=`<div class="d"></div><div class="n">${e.name}</div><div class="h">${k}</div>`;
+  d.onclick=()=>{ chosenEl=k;
+    beast.children[0].material.color.setHex(e.color);
+    beast.children[1].material.color.setHex(e.color);
+    elRow.querySelectorAll('.el-cell').forEach((c,i)=>c.classList.toggle('sel',Object.keys(ELEMENTS)[i]===k));
+  };
+  elRow.appendChild(d);
+});
+document.getElementById('start-btn').onclick=()=>{
+  document.getElementById('start-overlay').style.display='none';
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('goal').style.display='block';
+  document.getElementById('hud-name').textContent=ELEMENTS[chosenEl].name+'之兽';
+  playing=true;
+};
+function showMsg(t){ const m=document.getElementById('msg'); m.textContent=t; m.style.display='block';
+  clearTimeout(m._t); m._t=setTimeout(()=>m.style.display='none',1200); }
+function showBanner(name,desc){
+  const b=document.getElementById('banner');
+  b.querySelector('.b-name').textContent=name; b.querySelector('.b-desc').textContent=desc;
+  b.style.display='block'; clearTimeout(b._t);
+  b._t=setTimeout(()=>b.style.display='none',2200);
+}
+
+/* 进化三选一 */
+const EVOS=[
+  {key:'sun', t:'烈阳之心', d:'生命上限 +25；影兽撞到你时会被狠狠弹开、短时间不敢靠近。'},
+  {key:'wind',t:'疾风之羽', d:'移动速度 +45%，像风一样掠过荒野，甩开追兵。'},
+  {key:'stone',t:'磐石之核', d:'生命上限 +15，被影兽撞到的伤害减半。'},
+];
+function triggerEvolution(){
+  playing=false;
+  const box=document.getElementById('evo-options'); box.innerHTML='';
+  EVOS.forEach(ev=>{
+    const b=document.createElement('button'); b.className='evo-opt';
+    b.innerHTML=`<div class="t">${ev.t}</div><div class="d">${ev.d}</div>`;
+    b.onclick=()=>{
+      buff=ev.key;
+      if(ev.key==='sun'){ hp=Math.min(100,hp+25); }
+      if(ev.key==='stone'){ hp=Math.min(100,hp+15); }
+      document.getElementById('hud-buff').textContent='进化：'+ev.t;
+      document.getElementById('hp-fill').style.width=hp+'%';
+      document.getElementById('evo-overlay').style.display='none';
+      showMsg('进化完成：'+ev.t);
+      playing=true;
+    };
+    box.appendChild(b);
+  });
+  document.getElementById('evo-overlay').style.display='flex';
+}
+
+function endGame(win){
+  gameEnded=true; playing=false;
+  document.getElementById('end-title').textContent=win?'进化达成！':'你的兽倒下了…';
+  document.getElementById('end-sub').textContent=win
+    ? `你收集了 ${shardCount} 个结晶，选择了「${EVOS.find(e=>e.key===buff)?.t||'—'}」，荒野认可了你。`
+    : `你坚持到了 ${shardCount} 个结晶${buff?'，进化成了「'+EVOS.find(e=>e.key===buff).t+'」':''}。再来一次。`;
+  document.getElementById('end-overlay').style.display='flex';
+}
+
+/* ---------- 主循环 ---------- */
+const clock=new THREE.Clock();
+function updateCamera(){
+  const d=9;
+  camera.position.x=beast.position.x+Math.sin(yaw)*Math.cos(pitch)*d;
+  camera.position.y=beast.position.y+Math.sin(pitch)*d+1.5;
+  camera.position.z=beast.position.z+Math.cos(yaw)*Math.cos(pitch)*d;
+  camera.lookAt(beast.position.x,beast.position.y+1,beast.position.z);
+}
+function tick(){
+  requestAnimationFrame(tick);
+  const dt=Math.min(clock.getDelta(),0.05);
+  if(!gameEnded){
+    /* 群系切换提示 + 雾色过渡 */
+    const cb=biomeAt(beast.position.x,beast.position.z);
+    if(cb.name!==currentBiome){
+      currentBiome=cb.name;
+      if(playing) showBanner(cb.name, cb.desc);
+    }
+    scene.fog.color.lerp(new THREE.Color(cb.fog), dt*2);
+    scene.background.copy(scene.fog.color);
+
+    /* 移动 */
+    let ix=0,iz=0;
+    if(keys['w']||keys['arrowup']) iz-=1;
+    if(keys['s']||keys['arrowdown']) iz+=1;
+    if(keys['a']||keys['arrowleft']) ix-=1;
+    if(keys['d']||keys['arrowright']) ix+=1;
+    ix+=joyVec.x; iz+=joyVec.y;
+    const moving=(ix!==0||iz!==0);
+    const speed=(buff==='wind')?13.5:9;
+    if(playing&&moving){
+      const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+      const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+      const dir=new THREE.Vector3().addScaledVector(fwd,-iz).addScaledVector(right,ix).normalize();
+      beast.position.addScaledVector(dir,speed*dt);
+      beast.position.x=Math.max(-100,Math.min(100,beast.position.x));
+      beast.position.z=Math.max(-100,Math.min(100,beast.position.z));
+      const tr=Math.atan2(dir.x,dir.z);
+      let dr=tr-beast.rotation.y;
+      while(dr>Math.PI)dr-=Math.PI*2; while(dr<-Math.PI)dr+=Math.PI*2;
+      beast.rotation.y+=dr*Math.min(1,dt*10);
+    }
+    const ty=groundHeight(beast.position.x,beast.position.z);
+    beast.position.y+=(ty-beast.position.y)*Math.min(1,dt*10);
+    beast.children[0].position.y=0.8+(moving?Math.abs(Math.sin(clock.elapsedTime*10))*0.12:0);
+
+    /* 结晶 */
+    for(let i=shards.length-1;i>=0;i--){
+      const s=shards[i];
+      s.rotation.y+=dt*2; s.position.y+=Math.sin(clock.elapsedTime*2+i)*0.002;
+      if(playing && s.position.distanceTo(beast.position)<1.6){
+        scene.remove(s); shards.splice(i,1);
+        shardCount++; hp=Math.min(100,hp+2);
+        document.getElementById('shard-count').textContent=shardCount;
+        document.getElementById('hp-fill').style.width=hp+'%';
+        showMsg('◆ +1 以太结晶');
+        if(!evoDone && shardCount>=EVO_AT){ evoDone=true; triggerEvolution(); }
+        else if(shardCount>=GOAL){ endGame(true); }
+      }
+    }
+    /* 影兽 */
+    foes.forEach(f=>{
+      f.userData.hurtCd-=dt; f.userData.stun-=dt;
+      const toBeast=new THREE.Vector3().subVectors(beast.position,f.position);
+      const dist=toBeast.length();
+      if(f.userData.stun>0){ /* 定身 */ }
+      else if(dist<14){ toBeast.normalize(); f.userData.dir=Math.atan2(toBeast.x,toBeast.z); }
+      else f.userData.dir+=(Math.random()-0.5)*dt;
+      const sp=(dist<14?4:1.2);
+      f.position.x+=Math.sin(f.userData.dir)*sp*dt;
+      f.position.z+=Math.cos(f.userData.dir)*sp*dt;
+      f.position.y=groundHeight(f.position.x,f.position.z)+0.8;
+      f.rotation.y+=dt*2;
+      if(playing && dist<1.3 && f.userData.hurtCd<=0){
+        f.userData.hurtCd=1.2;
+        let dmg=15; if(buff==='stone') dmg=7;
+        hp-=dmg; document.getElementById('hp-fill').style.width=hp+'%';
+        showMsg('被影兽撞到 -'+dmg+' 生命');
+        beast.position.addScaledVector(toBeast,-2);
+        if(buff==='sun'){ f.userData.stun=2.5; beast.position.addScaledVector(toBeast,-1.5); }
+        if(hp<=0){ hp=0; endGame(false); }
+      }
+    });
+  }
+  updateCamera();
+  renderer.render(scene,camera);
+}
+window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+renderer.setSize(innerWidth,innerHeight);
+tick();
+</script>
+</body>
+</html>
